@@ -60,7 +60,7 @@ else
 					md5=$(sed 's/\ .*//' $md5file)
 
 					md5compare=`zenity --entry --text="Arquivo: $@\nMD5: $md5\n\nInsira abaixo para comparar:" \
-					--title="Calculado com sucesso" --entry-text="$md5"`
+					--title="Calculado com sucesso"`
 
 					if [ $? -eq 0 ]
 					then
