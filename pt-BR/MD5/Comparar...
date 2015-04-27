@@ -7,103 +7,111 @@
 # NAME:		Cria e compara MD5
 # DESCRIPTION:
 
-hash pv
-tempv=$?
-
-pipe=$(mktemp -u)
-mkfifo $pipe
-
-if [ $? -eq 0 ]
+if [ -d "$@" ]
 then
 
-	md5file=$(mktemp)
+	zenity --error --text="O arquivo $@ selecionado é um diretório."
+
+else
+
+	hash pv
+	tempv=$?
+
+	pipe=$(mktemp -u)
+	mkfifo $pipe
+
 	if [ $? -eq 0 ]
 	then
-	
-		if [ $tempv -eq 0 ]
-		then
-		
-			zenity --progress --title "Criando soma MD5..." --text "Criando soma MD5 de $@" --auto-close < $pipe &
-			pidpb=${!}
-	
-			(pv -n "$@" | md5sum) 2> $pipe > $md5file &
-			pidmd5=${!}
-		
-		else
 
-			zenity --progress --pulsate --title "Criando soma MD5..." --text "Criando soma MD5 de $@" --auto-close < $pipe &
-			pidpb=${!}
-	
-			md5sum "$@" 2> $pipe > $md5file &
-			pidmd5=${!}
-		
-		fi
-	
-	
-		wait $pidpb
-
+		md5file=$(mktemp)
 		if [ $? -eq 0 ]
 		then
-
-			wait $pidmd5
-		
-			if [ $? -eq 0 ]
+	
+			if [ $tempv -eq 0 ]
 			then
 		
-				md5=$(sed 's/\ .*//' $md5file)
+				zenity --progress --title "Criando soma MD5..." --text "Criando soma MD5 de $@" --auto-close < $pipe &
+				pidpb=${!}
+	
+				(pv -n "$@" | md5sum) 2> $pipe > $md5file &
+				pidmd5=${!}
+		
+			else
 
-				md5compare=`zenity --entry --text="Arquivo: $@\nMD5: $md5\n\nInsira abaixo para comparar:" \
-				--title="Calculado com sucesso"`
+				zenity --progress --pulsate --title "Criando soma MD5..." --text "Criando soma MD5 de $@" --auto-close < $pipe &
+				pidpb=${!}
+	
+				md5sum "$@" 2> $pipe > $md5file &
+				pidmd5=${!}
+		
+			fi
+	
+	
+			wait $pidpb
 
+			if [ $? -eq 0 ]
+			then
+
+				wait $pidmd5
+		
 				if [ $? -eq 0 ]
 				then
+		
+					md5=$(sed 's/\ .*//' $md5file)
 
-					if [ "$md5" == "$md5compare" ]
+					md5compare=`zenity --entry --text="Arquivo: $@\nMD5: $md5\n\nInsira abaixo para comparar:" \
+					--title="Calculado com sucesso"`
+
+					if [ $? -eq 0 ]
 					then
-						compare="Os hash MD5 são idênticos."
-						icon="info"
-					else
-						compare="Os hash MD5 são diferentes."
-						icon="warning"
+
+						if [ "$md5" == "$md5compare" ]
+						then
+							compare="Os hash MD5 são idênticos."
+							icon="info"
+						else
+							compare="Os hash MD5 são diferentes."
+							icon="warning"
+						fi
+
+						zenity --info --window-icon=$icon --text="$md5\n$md5compare\n\n$compare"
+
 					fi
-
-					zenity --info --window-icon=$icon --text="$md5\n$md5compare\n\n$compare"
-
+		
+				else
+			
+					zenity --error --text="Erro ao realizar a soma MD5."
 				fi
 		
 			else
-			
-				zenity --error --text="Erro ao realizar a soma MD5."
+				pkill -15 -P $pidmd5
+				kill -15 $pidmd5
+		
+				if ps -p $pidmd5 > /dev/null
+				then
+				   zenity --error --text="Erro ao finalizar md5sum."
+				fi
 			fi
+
+			rm $md5file
 		
-		else
-			pkill -15 -P $pidmd5
-			kill -15 $pidmd5
-		
-			if ps -p $pidmd5 > /dev/null
+			if [ $? -ne 0 ]
 			then
-			   zenity --error --text="Erro ao finalizar md5sum."
+				zenity --error --text="Erro ao remover arquivo temporário."
 			fi
+			
+		else
+			zenity --error --text="Erro ao criar arquivo temporário."
 		fi
 
-		rm $md5file
-		
+		rm $pipe
+	
 		if [ $? -ne 0 ]
 		then
-			zenity --error --text="Erro ao remover arquivo temporário."
+			zenity --error --text="Erro ao remover pipe temporário."
 		fi
-			
 	else
-		zenity --error --text="Erro ao criar arquivo temporário."
+	  zenity --error --text="Erro ao criar pipe temporário."
 	fi
 
-	rm $pipe
-	
-	if [ $? -ne 0 ]
-	then
-		zenity --error --text="Erro ao remover pipe temporário."
-	fi
-else
-  zenity --error --text="Erro ao criar pipe temporário."
 fi
-
